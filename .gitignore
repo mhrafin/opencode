@@ -3,3 +3,5 @@
 !opencode.json
 !tui.json
 !.gitignore
+!commands/
+!commands/**
