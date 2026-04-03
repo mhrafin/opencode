@@ -1,7 +1,7 @@
 ---
 name: Smart Commit
 description: Analyzes git changes and splits them into logical, well-structured commits
-model: opencode/mimo-v2-pro-free
+model: opencode/qwen3.6-plus-free
 permission:
   bash: allow
   todowrite: allow
