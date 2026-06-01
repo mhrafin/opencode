@@ -4,6 +4,9 @@
     "bash": {
       "*": "ask",
       "git *": "allow",
+      "git add *": "ask",
+      "git commit *": "ask",
+      "git push *": "deny",
       "rm *": "deny",
       "grep *": "allow",
       "ls *": "allow"
@@ -15,7 +18,6 @@
       "*.env.*": "deny",
       "*.env.example": "allow"
     },
-    "skill": "allow"
   }
 }
 
