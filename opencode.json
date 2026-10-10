@@ -1,19 +1,67 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "permission": {
-    "bash": {
-      "*": "allow",
-      "git add *": "ask",
-      "git commit *": "ask",
-      "git push *": "deny",
-      "rm *": "ask",
-    },
-    "edit": "ask",
-    "read": {
-      "*": "allow",
-      "*.env": "deny",
-      "*.env.example": "allow"
-    },
+  "mcp": {
+    "servers": {
+      "chrome-devtools": {
+        "type": "local",
+        "command": ["npx", "-y", "chrome-devtools-mcp@latest"],
+        "disabled": false
+      },
+      "penpot": {
+        "type": "remote",
+        "url": "https://design.penpot.app/mcp/stream?userToken={env:PENPOT_TOKEN}",
+        "oauth": false,
+        "disabled": false
+      }
+    }
   },
+  "permissions": [
+    { "action": "shell", "resource": "*", "effect": "allow" },
+    { "action": "shell", "resource": "git add *", "effect": "ask" },
+    { "action": "shell", "resource": "git commit *", "effect": "ask" },
+    { "action": "shell", "resource": "git config *", "effect": "ask" },
+    { "action": "shell", "resource": "git push *", "effect": "deny" },
+    { "action": "shell", "resource": "rm *", "effect": "ask" },
+    { "action": "shell", "resource": "*~/.ssh*", "effect": "deny" },
+    { "action": "shell", "resource": "*$HOME/.ssh*", "effect": "deny" },
+    { "action": "shell", "resource": "*/.ssh/*", "effect": "deny" },
+    { "action": "edit", "resource": "*", "effect": "ask" },
+    { "action": "edit", "resource": "~/.ssh/*", "effect": "deny" },
+    { "action": "edit", "resource": "~/.ssh/**", "effect": "deny" },
+    { "action": "edit", "resource": "$HOME/.ssh/*", "effect": "deny" },
+    { "action": "edit", "resource": "$HOME/.ssh/**", "effect": "deny" },
+    { "action": "edit", "resource": "/home/raf/.ssh/*", "effect": "deny" },
+    { "action": "edit", "resource": "/home/raf/.ssh/**", "effect": "deny" },
+    { "action": "read", "resource": "*", "effect": "allow" },
+    { "action": "read", "resource": "*.env", "effect": "deny" },
+    { "action": "read", "resource": "*.env.example", "effect": "allow" },
+    { "action": "read", "resource": "~/.ssh/*", "effect": "deny" },
+    { "action": "read", "resource": "~/.ssh/**", "effect": "deny" },
+    { "action": "read", "resource": "$HOME/.ssh/*", "effect": "deny" },
+    { "action": "read", "resource": "$HOME/.ssh/**", "effect": "deny" },
+    { "action": "read", "resource": "/home/raf/.ssh/*", "effect": "deny" },
+    { "action": "read", "resource": "/home/raf/.ssh/**", "effect": "deny" },
+    { "action": "glob", "resource": "*", "effect": "allow" },
+    { "action": "glob", "resource": "~/.ssh/*", "effect": "deny" },
+    { "action": "glob", "resource": "~/.ssh/**", "effect": "deny" },
+    { "action": "glob", "resource": "$HOME/.ssh/*", "effect": "deny" },
+    { "action": "glob", "resource": "$HOME/.ssh/**", "effect": "deny" },
+    { "action": "glob", "resource": "/home/raf/.ssh/*", "effect": "deny" },
+    { "action": "glob", "resource": "/home/raf/.ssh/**", "effect": "deny" },
+    { "action": "grep", "resource": "*", "effect": "allow" },
+    { "action": "grep", "resource": "~/.ssh*", "effect": "deny" },
+    { "action": "grep", "resource": "$HOME/.ssh*", "effect": "deny" },
+    { "action": "grep", "resource": "/home/raf/.ssh*", "effect": "deny" },
+    { "action": "grep", "resource": "*/.ssh/*", "effect": "deny" },
+    { "action": "list", "resource": "*", "effect": "allow" },
+    { "action": "list", "resource": "~/.ssh/*", "effect": "deny" },
+    { "action": "list", "resource": "~/.ssh/**", "effect": "deny" },
+    { "action": "list", "resource": "$HOME/.ssh/*", "effect": "deny" },
+    { "action": "list", "resource": "$HOME/.ssh/**", "effect": "deny" },
+    { "action": "list", "resource": "/home/raf/.ssh/*", "effect": "deny" },
+    { "action": "list", "resource": "/home/raf/.ssh/**", "effect": "deny" },
+    { "action": "external_directory", "resource": "~/.ssh/**", "effect": "deny" },
+    { "action": "external_directory", "resource": "$HOME/.ssh/**", "effect": "deny" },
+    { "action": "external_directory", "resource": "/home/raf/.ssh/**", "effect": "deny" }
+  ]
 }
-
