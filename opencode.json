@@ -1,5 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "plugins": ["/home/raf/.config/opencode/plugins/puml-guard"],
   "mcp": {
     "servers": {
       "chrome-devtools": {
