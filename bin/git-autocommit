@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+#
+# git-autocommit - commit and push a repo at most once per interval.
+#
+# Gate: a state file records when the last *successful* run happened. If that
+# run was less than INTERVAL hours ago, the script exits without touching git.
+# The timer fires every 30 minutes; the gate is what makes it effectively 24h.
+#
+# Only a successful push stamps the state file. A failed push leaves the gate
+# open so the next tick retries. RETRIES controls how hard one tick tries.
+#
+# Usage: git-autocommit [REPO_PATH]
+# Env:   INTERVAL_HOURS, RETRIES, RETRY_SLEEP, GAC_STATE_DIR, GAC_LOG,
+#        FORCE=1 (ignore the gate), DRY_RUN=1 (stop before staging),
+#        SHOW_STATUS=1 (report gate + repo state, change nothing)
+#
+set -euo pipefail
+
+REPO="${1:-${REPO:-$HOME/.config/opencode}}"
+INTERVAL_HOURS="${INTERVAL_HOURS:-24}"
+RETRIES="${RETRIES:-3}"
+RETRY_SLEEP="${RETRY_SLEEP:-30}"
+STATE_DIR="${GAC_STATE_DIR:-$HOME/.local/state/git-autocommit}"
+LOG_FILE="${GAC_LOG:-$HOME/.local/state/git-autocommit/autocommit.log}"
+DRY_RUN="${DRY_RUN:-0}"
+FORCE="${FORCE:-0}"
+SHOW_STATUS="${SHOW_STATUS:-0}"
+
+STATE_FILE="$STATE_DIR/$(printf '%s' "$REPO" | tr '/' '_').lastrun"
+mkdir -p "$STATE_DIR"
+
+log() { printf '%s [%s] %s\n' "$(date -Is)" "git-autocommit" "$*"; }
+
+# Rotate the log before anything else, so a runaway log can never wedge the run.
+if [ -f "$LOG_FILE" ]; then
+    _size=$(wc -c <"$LOG_FILE" 2>/dev/null || echo 0)
+    [ "$_size" -gt 5242880 ] && mv -f "$LOG_FILE" "$LOG_FILE.1"
+fi
+exec >>"$LOG_FILE" 2>&1
+
+log "=== start (repo=$REPO interval=${INTERVAL_HOURS}h pid=$$) ==="
+
+# ---------------------------------------------------------------- prerequisites
+fail() { log "PREREQUISITE FAILED: $*"; exit 1; }
+
+command -v git >/dev/null 2>&1 || fail "git is not installed"
+git --version | grep -Eq 'git version (2|3|4)\.' || fail "git is too old for this script"
+
+[ -d "$REPO" ] || fail "repo directory does not exist: $REPO"
+REPO="$(cd "$REPO" && pwd)"
+
+# A stray GIT_DIR/GIT_WORK_TREE in the environment silently retargets git.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE 2>/dev/null || true
+
+# Every git call goes through here so -C and the environment are consistent.
+g() { git -C "$REPO" "$@"; }
+
+# `timeout` execs a binary, so it cannot see the shell function g(). This wrapper
+# keeps the function visible to the timeout'd child.
+gt() { timeout "$1" git -C "$REPO" "${@:2}"; }
+
+g rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail "not a git work tree: $REPO"
+g rev-parse --is-shallow-repository >/dev/null 2>&1 || fail "git rev-parse broken"
+
+REMOTE="$(g remote 2>/dev/null | head -n1 || true)"
+[ -n "$REMOTE" ] || fail "no remote configured (git remote add origin <url>)"
+g remote get-url "$REMOTE" >/dev/null 2>&1 || fail "remote '$REMOTE' has no URL"
+REMOTE_URL="$(g remote get-url "$REMOTE")"
+
+if ! g config user.name >/dev/null 2>&1 || ! g config user.email >/dev/null 2>&1; then
+    fail "git identity unset: run 'git config --global user.name \"You\"' and user.email"
+fi
+
+if [ -f "$REPO/.git/MERGE_HEAD" ] || [ -d "$REPO/.git/rebase-merge" ] \
+   || [ -d "$REPO/.git/rebase-apply" ] || [ -f "$REPO/.git/CHERRY_PICK_HEAD" ]; then
+    fail "unfinished merge/rebase/cherry-pick in $REPO - resolve it by hand first"
+fi
+
+# Prove auth works now rather than 3 retries from now. `git ls-remote` is the
+# real test: it exercises the remote, the transport and the credentials.
+log "prerequisites ok (remote=$REMOTE url=$REMOTE_URL)"
+if ! gt 30 ls-remote "$REMOTE" >/dev/null 2>&1; then
+    log "WARNING: 'git ls-remote $REMOTE' failed - remote unreachable or auth rejected"
+    if printf '%s' "$REMOTE_URL" | grep -Eq '^git@|^ssh://'; then
+        log "  check: ssh -T $(printf '%s' "$REMOTE_URL" | awk '{u=$0} u ~ /^git@/ {sub(/^git@/,"",u); sub(/:.*$/,"",u); print u}')"
+    fi
+fi
+
+# Commits left behind by a previous failed push must still go out, even when
+# the working tree is clean. Checked before the clean-tree early exit.
+has_unpushed() {
+    if git -C "$REPO" log '@{push}..HEAD' --oneline 2>/dev/null | head -n1 | grep -q .; then
+        return 0
+    fi
+    # No push target configured, or older git: fall back to the upstream branch.
+    if git -C "$REPO" rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1; then
+        git -C "$REPO" log '@{u}..HEAD' --oneline 2>/dev/null | head -n1 | grep -q . && return 0
+    fi
+    return 1
+}
+
+# ------------------------------------------------------------------- 24h gate
+last_run_epoch() {
+    if [ -f "$STATE_FILE" ]; then
+        cat "$STATE_FILE" 2>/dev/null || true
+    fi
+}
+
+last="$(last_run_epoch)"
+if [ -z "$last" ] || ! printf '%s' "$last" | grep -Eq '^[0-9]+$'; then
+    log "no valid timestamp in $STATE_FILE - treating as never run"
+    last=0
+fi
+
+now="$(date +%s)"
+if [ "$last" -gt 0 ]; then
+    elapsed=$(( (now - last) / 60 ))
+    log "last successful run: $(date -d "@$last" -Is) (${elapsed}m ago, gate=${INTERVAL_HOURS}h)"
+    if [ "$FORCE" != "1" ] && [ "$elapsed" -lt $((INTERVAL_HOURS * 60)) ]; then
+        log "SKIP: ran ${elapsed}m ago, less than ${INTERVAL_HOURS}h. Nothing to do."
+        exit 0
+    fi
+else
+    log "last successful run: never"
+    [ "$FORCE" = "1" ] || log "gate open - first run"
+fi
+
+# --status: report state and exit without touching anything.
+if [ "$SHOW_STATUS" = "1" ]; then
+    dirty="$(g status --porcelain | wc -l)"
+    log "STATUS repo=$REPO remote=$REMOTE gate_last=$([ "$last" -gt 0 ] && date -d "@$last" -Is || echo never) interval=${INTERVAL_HOURS}h"
+    log "STATUS dirty_files=$dirty unpushed=$(has_unpushed 2>/dev/null && echo yes || echo no)"
+    exit 0
+fi
+
+# ------------------------------------------------------------------ git work
+dirty_count="$(g status --porcelain | wc -l)"
+
+if [ "$dirty_count" -eq 0 ] && ! has_unpushed; then
+    log "nothing to commit and nothing unpushed (working tree clean)"
+    # Nothing to push, so the run is complete. Stamp it so we do not re-check
+    # every 30 minutes forever.
+    printf '%s\n' "$now" >"$STATE_FILE.tmp" && mv -f "$STATE_FILE.tmp" "$STATE_FILE"
+    log "=== done: clean, gate stamped ==="
+    exit 0
+fi
+
+if [ "$dirty_count" -gt 0 ]; then
+    log "pending changes:"
+    g status --porcelain | sed 's/^/    /'
+else
+    log "working tree clean, but unpushed commit(s) present:"
+    git -C "$REPO" log '@{push}..HEAD' --oneline 2>/dev/null | sed 's/^/    /'
+fi
+
+if [ "$DRY_RUN" = "1" ]; then
+    log "DRY_RUN=1 - stopping before staging"
+    exit 0
+fi
+
+# Commit only when there is something to commit. A clean tree with unpushed
+# commits skips straight to the push, otherwise the "nothing staged" path below
+# would exit before the push ever ran.
+if [ "$dirty_count" -gt 0 ]; then
+    if ! gt 120 add -A; then
+        fail "'git add -A' failed (timeout or index.lock present?)"
+    fi
+
+    staged="$(git -C "$REPO" diff --cached --numstat | wc -l)"
+    [ "$staged" -gt 0 ] || { log "nothing staged after add"; printf '%s\n' "$now" >"$STATE_FILE.tmp" && mv -f "$STATE_FILE.tmp" "$STATE_FILE"; exit 0; }
+    log "staged $staged changed file(s)"
+
+    msg="autocommit: $(date -Is) on $(hostname)"
+    if ! gt 120 commit -m "$msg" >/dev/null 2>&1; then
+        fail "'git commit' failed"
+    fi
+    log "committed: $(git -C "$REPO" log -1 --pretty='%h %s')"
+fi
+
+# ------------------------------------------------------- push with retry loop
+attempt=1
+pushed=0
+while [ "$attempt" -le "$RETRIES" ]; do
+    if gt 300 push "$REMOTE" >/dev/null 2>&1; then
+        pushed=1
+        break
+    fi
+    log "push attempt $attempt/$RETRIES failed"
+    if [ "$attempt" -lt "$RETRIES" ]; then
+        sleep "$RETRY_SLEEP"
+        # Someone may have pushed while we slept - rebase our commit on top.
+        if ! gt 120 pull --rebase --autostash "$REMOTE" >/dev/null 2>&1; then
+            log "rebase attempt failed, retrying plain push"
+        fi
+    fi
+    attempt=$((attempt + 1))
+done
+
+if [ "$pushed" != "1" ]; then
+    log "ERROR: push failed after $RETRIES attempts. Gate left OPEN - next tick retries."
+    exit 2
+fi
+
+printf '%s\n' "$now" >"$STATE_FILE.tmp" && mv -f "$STATE_FILE.tmp" "$STATE_FILE"
+log "pushed to $REMOTE; gate stamped for ${INTERVAL_HOURS}h"
+log "=== done ==="

@@ -8,3 +8,6 @@
 !agents/
 !agents/**
 !plugins/**
+!bin/
+!bin/**
+!AUTOCOMMIT.md
