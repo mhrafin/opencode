@@ -17,6 +17,16 @@
 set -euo pipefail
 
 REPO="${1:-${REPO:-$HOME/.config/opencode}}"
+
+# A systemd template passes the instance name, not the path: /a/b/c arrives as
+# a-b-c. Undo that so the template unit works for any repo path. Only attempted
+# when the argument is not a directory, so plain CLI use is never affected.
+if [ ! -d "$REPO" ] && command -v systemd-escape >/dev/null 2>&1; then
+    _unesc="$(systemd-escape --unescape --path "$REPO" 2>/dev/null || true)"
+    if [ -n "$_unesc" ] && [ "$_unesc" != "$REPO" ] && [ -d "$_unesc" ]; then
+        REPO="$_unesc"
+    fi
+fi
 INTERVAL_HOURS="${INTERVAL_HOURS:-24}"
 RETRIES="${RETRIES:-3}"
 RETRY_SLEEP="${RETRY_SLEEP:-30}"
