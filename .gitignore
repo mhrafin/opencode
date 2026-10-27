@@ -3,8 +3,11 @@
 !opencode.json
 !tui.json
 !.gitignore
+!README.md
 !commands/
 !commands/**
 !agents/
 !agents/**
 !plugins/**
+!scripts/
+!scripts/**
