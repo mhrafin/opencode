@@ -1,13 +1,19 @@
-*
+# Dependencies — installed with npm, never committed
+node_modules/
+plugins/**/node_modules/
 
-!opencode.json
-!tui.json
-!.gitignore
-!README.md
-!commands/
-!commands/**
-!agents/
-!agents/**
-!plugins/**
-!scripts/
-!scripts/**
+# Secrets — never commit
+.secrets/
+service.json
+.env
+.env.*
+!.env.example
+
+# Local / machine-specific state
+.hermes/
+opencode-mem.jsonc
+
+# OS / editor / temp noise
+.DS_Store
+*.log
+*.tmp
