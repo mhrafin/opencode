@@ -43,6 +43,48 @@
     { "action": "read", "resource": "*.env.example", "effect": "allow" },
     { "action": "glob", "resource": "*", "effect": "allow" },
     { "action": "grep", "resource": "*", "effect": "allow" },
-    { "action": "list", "resource": "*", "effect": "allow" },
-  ]
+    { "action": "list", "resource": "*", "effect": "allow" }
+  ],
+  "provider": {
+    "omniroute": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "OmniRoute",
+      "options": {
+        "baseURL": "http://localhost:20128/v1",
+        "apiKey": "sk-3eec7778affa1558-7d5e26-4dc0922f"
+      },
+      "models": {
+        "gh/auto": {
+          "name": "gh/auto",
+          "reasoning": true,
+          "tool_call": true,
+          "limit": {
+            "context": 128000,
+            "output": 8192
+          }
+        }
+      }
+    }
+  },
+  "providers": {
+    "omniroute": {
+      "name": "OmniRoute",
+      "package": "@opencode-ai/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "http://localhost:20128/v1",
+        "apiKey": "sk-3eec7778affa1558-7d5e26-4dc0922f"
+      },
+      "models": {
+        "gh/auto": {
+          "name": "gh/auto",
+          "reasoning": true,
+          "tool_call": true,
+          "limit": {
+            "context": 128000,
+            "output": 8192
+          }
+        }
+      }
+    }
+  }
 }
