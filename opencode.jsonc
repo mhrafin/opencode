@@ -1,4 +1,8 @@
 {
+  "instructions": [
+    "/home/raf/.penpot-ai-kit/AGENTS.md",
+    "/home/raf/.penpot-ai-kit/skills/penpot-router/SKILL.md"
+  ],
   "$schema": "https://opencode.ai/config.json",
   "websearch": {
     "provider": "exa",
@@ -9,7 +13,7 @@
       "chrome-devtools": {
         "type": "local",
         "command": ["npx", "-y", "chrome-devtools-mcp@latest"],
-        "disabled": false,
+        "disabled": true,
       },
       "penpot": {
         "type": "remote",
@@ -39,10 +43,11 @@
   },
   "permissions": [
     { "action": "shell", "resource": "*", "effect": "allow" },
-    { "action": "shell", "resource": "git add *", "effect": "ask" },
-    { "action": "shell", "resource": "git commit *", "effect": "ask" },
+    { "action": "shell", "resource": "git add", "effect": "ask" },
+    { "action": "shell", "resource": "git commit", "effect": "ask" },
     { "action": "read", "resource": "*.env.*", "effect": "deny" },
     { "action": "read", "resource": "*.env.example", "effect": "allow" },
+    { "action": "edit", "resource": "*", "effect": "ask" },
     { "action": "edit", "resource": "*.env.*", "effect": "deny" },
     { "action": "edit", "resource": "*.env.example", "effect": "allow" },
   ],
