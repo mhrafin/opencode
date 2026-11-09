@@ -1,0 +1,3 @@
+[submodule "plugins/opencode-permission-ui"]
+	path = plugins/opencode-permission-ui
+	url = git@github.com:mhrafin/opencode-permission-ui.git
