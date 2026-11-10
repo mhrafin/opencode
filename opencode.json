@@ -1,34 +1,34 @@
 {
+  "$schema": "https://opencode.ai/config.json",
   "instructions": [
     "/home/raf/.penpot-ai-kit/AGENTS.md",
     "/home/raf/.penpot-ai-kit/skills/penpot-router/SKILL.md"
   ],
-  "$schema": "https://opencode.ai/config.json",
   "websearch": {
-    "provider": "exa",
+    "provider": "exa"
   },
-  "plugins": ["cc-safety-net@latest", "opencode-mem@latest"],
+  "plugins": ["cc-safety-net@latest"],
   "mcp": {
     "servers": {
       "chrome-devtools": {
         "type": "local",
         "command": ["npx", "-y", "chrome-devtools-mcp@latest"],
-        "disabled": true,
+        "disabled": true
       },
       "penpot": {
         "type": "remote",
         "url": "https://design.penpot.app/mcp/stream?userToken={file:.secrets/penpot-token}",
         "oauth": false,
-        "disabled": false,
+        "disabled": false
       },
       "n8n-mcp": {
         "type": "remote",
         "url": "https://n8n.mhrafin.dev/mcp-server/http",
         "oauth": false,
         "headers": {
-          "Authorization": "Bearer {file:.secrets/n8n-mcp-token}",
+          "Authorization": "Bearer {file:.secrets/n8n-mcp-token}"
         },
-        "disabled": false,
+        "disabled": false
       },
       "github": {
         "type": "remote",
@@ -36,54 +36,33 @@
         "enabled": true,
         "oauth": false,
         "headers": {
-          "Authorization": "Bearer {file:.secrets/github-pat}",
-        },
-      },
-    },
+          "Authorization": "Bearer {file:.secrets/github-pat}"
+        }
+      }
+    }
   },
   "permissions": [
     { "action": "shell", "resource": "*", "effect": "allow" },
-    { "action": "shell", "resource": "git add", "effect": "ask" },
-    { "action": "shell", "resource": "git commit", "effect": "ask" },
+    { "action": "shell", "resource": "git add *", "effect": "ask" },
+    { "action": "shell", "resource": "git commit *", "effect": "ask" },
     { "action": "read", "resource": "*.env.*", "effect": "deny" },
     { "action": "read", "resource": "*.env.example", "effect": "allow" },
     { "action": "edit", "resource": "*", "effect": "ask" },
     { "action": "edit", "resource": "*.env.*", "effect": "deny" },
     { "action": "edit", "resource": "*.env.example", "effect": "allow" },
+    { "action": "external_directory", "resource": "*", "effect": "ask" }
   ],
   "providers": {
-    "opencode": {
-      "settings": {
-        "baseURL": "http://127.0.0.1:17321",
-      },
-      "headers": {
-        "sleev-provider": "opencode",
-        "sleev-harness": "opencode",
-      },
-    },
-    "openrouter": {
-      "settings": {
-        "baseURL": "http://127.0.0.1:17321",
-      },
-      "headers": {
-        "sleev-provider": "openrouter",
-        "sleev-harness": "opencode",
-      },
-    },
     "agentrouter": {
       "package": "@opencode/ai/providers/openai/responses",
       "settings": {
-        "baseURL": "http://127.0.0.1:17321",
-      },
-      "headers": {
-        "sleev-harness": "opencode",
-        "sleev-base-url": "https://agentrouter.org/v1/",
+        "baseURL": "https://agentrouter.org/v1/"
       },
       "models": {
         "gpt-6.1-sol": {
-          "name": "GPT-6.1 Sol",
-        },
-      },
-    },
-  },
+          "name": "GPT-6.1 Sol"
+        }
+      }
+    }
+  }
 }
