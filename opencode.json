@@ -28,7 +28,7 @@
         "headers": {
           "Authorization": "Bearer {file:.secrets/n8n-mcp-token}"
         },
-        "disabled": false
+        "disabled": true
       },
       "github": {
         "type": "remote",
